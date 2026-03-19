@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document Extractor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px auto;
+            max-width: 800px;
+        }
+
+        #drop-zone {
+            width: 300px;
+            height: 150px;
+            border: 2px dashed #aaa;
+            border-radius: 10px;
+            line-height: 150px;
+            margin: 20px auto;
+            color: #777;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #drop-zone.dragover {
+            border-color: #000;
+            color: #000;
+            background-color: #f0f0f0;
+        }
+
+        /* Styling for the preview and text output */
+        .result-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        #pdf-preview {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: none; /* Hidden until a file is uploaded */
+        }
+
+        pre {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #eee;
+            width: 80%;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Upload Document</h2>
+
+    <div id="drop-zone">Drag & Drop or Click</div>
+    <input type="file" id="fileInput" accept=".pdf,.docx" hidden />
+
+    <div class="result-container">
+        <h3>Header Cut</h3>
+        <img id="header-cut-preview" style="max-width:100%; display:none; border: 1px solid blue;">
+        <pre id="header">Waiting...</pre>
+
+        <h3>Signature Cut</h3>
+        <img id="sig-cut-preview" style="max-width:100%; display:none; border: 1px solid green;">
+        <pre id="signature">Waiting...</pre>
+
+        <h3>Full Preview</h3>
+        <img id="pdf-preview">
+    </div>
+
+    <script>
+        const dropZone = document.getElementById("drop-zone");
+        const fileInput = document.getElementById("fileInput");
+
+        // Pre-define all element references so they are easy to access
+        const previewImg = document.getElementById("pdf-preview");
+        const headerImgSlot = document.getElementById("header-cut-preview");
+        const sigImgSlot = document.getElementById("sig-cut-preview");
+        const headerText = document.getElementById("header");
+        const signatureText = document.getElementById("signature");
+
+        dropZone.addEventListener("click", () => fileInput.click());
+
+        dropZone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZone.classList.add("dragover");
+        });
+
+        dropZone.addEventListener("dragleave", () => {
+            dropZone.classList.remove("dragover");
+        });
+
+        dropZone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            dropZone.classList.remove("dragover");
+            const file = e.dataTransfer.files[0];
+            if (file) uploadFile(file);
+        });
+
+        fileInput.addEventListener("change", () => {
+            const file = fileInput.files[0];
+            if (file) uploadFile(file);
+        });
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            // UI Feedback - Let the user know we are working
+            headerText.innerText = "Processing Header...";
+            signatureText.innerText = "Processing Signature...";
+
+            try {
+                const response = await fetch("http://localhost:8000/upload/", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Upload failed");
+
+                const data = await response.json();
+                console.log("Server Response:", data); // Check your F12 console to see this!
+                document.getElementById("header").innerText = data.header_text || "Missing Header";
+                document.getElementById("signature").innerText = data.signature_text || "Missing Signature";
+
+                // 1. Update Text Content (Using || to prevent 'undefined' text)
+                headerText.innerText = data.header_text || "No header data received";
+                signatureText.innerText = data.signature_text || "No signature data received";
+
+                // 2. Update Header Image
+                if (data.header_img) {
+                    headerImgSlot.src = "data:image/png;base64," + data.header_img;
+                    headerImgSlot.style.display = "block";
+                }
+
+                // 3. Update Signature Image
+                if (data.signature_img) {
+                    sigImgSlot.src = "data:image/png;base64," + data.signature_img;
+                    sigImgSlot.style.display = "block";
+                }
+
+                // 4. Update Full Preview
+                if (data.full_image) {
+                    previewImg.src = "data:image/png;base64," + data.full_image;
+                    previewImg.style.display = "block";
+                }
+
+            } catch (error) {
+                console.error("Error:", error);
+                headerText.innerText = "Error: " + error.message;
+                signatureText.innerText = "Error: " + error.message;
+                alert("Server connection failed. Is Uvicorn running?");
+            }
+        }
+    </script>
+
+</body>
+</html>

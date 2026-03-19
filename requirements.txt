@@ -1,0 +1,8 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.7
+pymupdf==1.23.22
+opencv-python-headless==4.9.0.80
+numpy==1.26.3
+python-dotenv==1.0.1
+aiofiles==23.2.1
