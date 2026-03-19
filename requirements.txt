@@ -6,3 +6,4 @@ opencv-python-headless==4.9.0.80
 numpy==1.26.3
 python-dotenv==1.0.1
 aiofiles==23.2.1
+flask==2.3.2
