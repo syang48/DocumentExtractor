@@ -1,0 +1,20 @@
+cat <<EOF > .gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Mac system files
+.DS_Store
+
+# Document Storage (Ignore your test uploads/outputs)
+storage/uploads/*
+storage/output/*
+!storage/uploads/.gitkeep
+!storage/output/.gitkeep
+
+# Samples (Optional: ignore if you don't want your test docs on GitHub)
+samples/
+EOF
