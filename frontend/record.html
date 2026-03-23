@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Records</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; text-align: center; }
+        nav { background: #2d3748; padding: 15px 30px; display: flex; justify-content: flex-end; gap: 20px; }
+        .nav-btn { color: white; text-decoration: none; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
+        .container { max-width: 1100px; margin: 30px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        
+        /* Pagination UI */
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #edf2f7; padding: 15px; border-radius: 8px; }
+        .pagination-btns { display: flex; gap: 10px; align-items: center; }
+        button { padding: 8px 15px; cursor: pointer; border-radius: 4px; border: 1px solid #cbd5e0; background: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th { background: #edf2f7; padding: 15px; text-align: left; border-bottom: 2px solid #cbd5e0; }
+        td { padding: 10px 15px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; }
+        
+        .preview-img { max-width: 150px; max-height: 80px; border-radius: 4px; border: 1px solid #ddd; display: block; margin-bottom: 5px; background: #f9f9f9; }
+        .action-btn { display: inline-block; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 11px; font-weight: bold; color: white; }
+        .btn-zip { background: #28a745; } .btn-header { background: #4299e1; } .btn-sig { background: #ed8936; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="/" class="nav-btn">🏠 Home</a>
+        <a href="/record" class="nav-btn">📋 Record</a>
+    </nav>
+
+    <div class="container">
+        <h2>📂 Processed Document Records</h2>
+
+        <div class="controls">
+            <div>
+                Show <select id="limitSelect" onchange="updateLimit()">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                </select> records
+            </div>
+            <div class="pagination-btns">
+                <button id="prevBtn" onclick="changePage(-1)">Previous</button>
+                <span id="pageIndicator">Page 1</span>
+                <button id="nextBtn" onclick="changePage(1)">Next</button>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Name</th>
+                    <th style="width: 15%;">All Assets</th>
+                    <th style="width: 32%;">Header Preview</th>
+                    <th style="width: 32%;">Signature Preview</th>
+                </tr>
+            </thead>
+            <tbody id="record-body"></tbody>
+        </table>
+        <div id="loader" style="padding: 20px;">Scanning storage...</div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let limit = 10;
+        let totalRecords = 0;
+
+        async function loadRecords() {
+            try {
+                const response = await fetch(`/api/records?page=${currentPage}&limit=${limit}`);
+                const data = await response.json();
+                const tbody = document.getElementById('record-body');
+                
+                tbody.innerHTML = "";
+                totalRecords = data.total;
+                document.getElementById('loader').style.display = 'none';
+
+                if (data.records.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>No records found.</td></tr>";
+                }
+
+                data.records.forEach(folder => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${folder}</strong></td>
+                        <td><a href="/download/${folder}" class="action-btn btn-zip">📦 Download Zip</a></td>
+                        <td>
+                            <img src="/download/header/${folder}" class="preview-img" alt="No Header">
+                            <a href="/download/header/${folder}" class="action-btn btn-header">💾 PNG</a>
+                        </td>
+                        <td>
+                            <img src="/download/signature/${folder}" class="preview-img" alt="No Sig">
+                            <a href="/download/signature/${folder}" class="action-btn btn-sig">💾 PNG</a>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Update UI state
+                document.getElementById('pageIndicator').innerText = `Page ${currentPage}`;
+                document.getElementById('prevBtn').disabled = currentPage === 1;
+                document.getElementById('nextBtn').disabled = (currentPage * limit) >= totalRecords;
+
+            } catch (err) {
+                document.getElementById('loader').innerText = "❌ Error connecting to server.";
+            }
+        }
+
+        function changePage(step) {
+            currentPage += step;
+            loadRecords();
+        }
+
+        function updateLimit() {
+            limit = document.getElementById('limitSelect').value;
+            currentPage = 1;
+            loadRecords();
+        }
+
+        loadRecords();
+    </script>
+</body>
+</html>

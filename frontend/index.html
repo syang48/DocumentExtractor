@@ -1,123 +1,206 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Extractor</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             text-align: center;
-            margin: 50px auto;
-            max-width: 800px;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: #333;
         }
 
+        /* --- Navigation Styles --- */
+        nav {
+            background: #2d3748;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: flex-end; /* Pushes buttons to the right */
+            gap: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .nav-btn {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+        /* --- Main Content --- */
+        .content { max-width: 900px; margin: 0 auto; padding: 20px; }
+
         #drop-zone {
-            width: 300px;
-            height: 150px;
-            border: 2px dashed #aaa;
-            border-radius: 10px;
-            line-height: 150px;
+            width: 400px;
+            height: 200px;
+            border: 3px dashed #cbd5e0;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin: 20px auto;
-            color: #777;
+            background: white;
+            color: #718096;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
         }
 
         #drop-zone.dragover {
-            border-color: #000;
-            color: #000;
-            background-color: #f0f0f0;
+            border-color: #4299e1;
+            background-color: #ebf8ff;
+            color: #2b6cb0;
         }
 
-        /* Styling for the preview and text output */
+        .download-btn {
+            background-color: #28a745; 
+            color: white; 
+            padding: 12px 25px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold;
+            display: inline-block;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            background-color: #218838;
+        }
+
         .result-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
             margin-top: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
         }
 
-        #pdf-preview {
+        .asset-section { width: 100%; margin-bottom: 20px; }
+
+        img {
             max-width: 100%;
             height: auto;
-            border: 1px solid #ddd;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            display: none; /* Hidden until a file is uploaded */
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-top: 10px;
         }
 
         pre {
-            background: #f9f9f9;
+            background: #edf2f7;
             padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #eee;
-            width: 80%;
+            border-radius: 8px;
+            width: 90%;
             white-space: pre-wrap;
-            word-wrap: break-word;
             text-align: left;
+            font-size: 14px;
+            border-left: 5px solid #4299e1;
+            margin: 10px auto;
         }
+
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <h2>Upload Document</h2>
+    <nav>
+        <a href="/" class="nav-btn">🏠 Home</a>
+        <a href="/record" class="nav-btn">📋 Record</a>
+    </nav>
 
-    <div id="drop-zone">Drag & Drop or Click</div>
-    <input type="file" id="fileInput" accept=".pdf,.docx" hidden />
+    <div class="content">
+        <h2>Document Extraction Service</h2>
+        <p>Upload a PDF or DOCX to extract headers and signatures.</p>
 
-    <div class="result-container">
-        <h3>Header Cut</h3>
-        <img id="header-cut-preview" style="max-width:100%; display:none; border: 1px solid blue;">
-        <pre id="header">Waiting...</pre>
+        <div id="drop-zone">Drag & Drop File or Click to Upload</div>
+        <input type="file" id="fileInput" accept=".pdf,.docx" hidden />
 
-        <h3>Signature Cut</h3>
-        <img id="sig-cut-preview" style="max-width:100%; display:none; border: 1px solid green;">
-        <pre id="signature">Waiting...</pre>
+        <div id="download-container" class="hidden" style="margin-bottom: 30px;">
+            <a id="download-link" href="#" class="download-btn">
+                📥 Download All Extracted Assets (.zip)
+            </a>
+        </div>
 
-        <h3>Full Preview</h3>
-        <img id="pdf-preview">
+        <div class="result-container">
+            <div class="asset-section">
+                <h3>Header Cut</h3>
+                <button id="dl-header" class="download-btn hidden" style="padding: 5px 15px;">💾 Download Header</button>
+                <br>
+                <img id="header-cut-preview" class="hidden" style="border: 1px solid blue;">
+                <pre id="header-text">Waiting for upload...</pre>
+            </div>
+
+            <div class="asset-section">
+                <h3>Signature Cut</h3>
+                <button id="dl-sig" class="download-btn hidden" style="padding: 5px 15px;">💾 Download Signature</button>
+                <br>
+                <img id="sig-cut-preview" class="hidden" style="border: 1px solid green;">
+                <pre id="signature-text">Waiting for upload...</pre>
+            </div>
+
+            <div class="asset-section">
+                <h3>Full Page Preview</h3>
+                <img id="full-preview" class="hidden">
+            </div>
+        </div>
     </div>
 
     <script>
         const dropZone = document.getElementById("drop-zone");
         const fileInput = document.getElementById("fileInput");
-
-        // Pre-define all element references so they are easy to access
-        const previewImg = document.getElementById("pdf-preview");
-        const headerImgSlot = document.getElementById("header-cut-preview");
-        const sigImgSlot = document.getElementById("sig-cut-preview");
-        const headerText = document.getElementById("header");
-        const signatureText = document.getElementById("signature");
+        const downloadContainer = document.getElementById("download-container");
+        const downloadLink = document.getElementById("download-link");
+        const dlHeaderBtn = document.getElementById("dl-header");
+        const dlSigBtn = document.getElementById("dl-sig");
+        const headerImg = document.getElementById("header-cut-preview");
+        const sigImg = document.getElementById("sig-cut-preview");
+        const fullImg = document.getElementById("full-preview");
+        const hText = document.getElementById("header-text");
+        const sText = document.getElementById("signature-text");
 
         dropZone.addEventListener("click", () => fileInput.click());
-
-        dropZone.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            dropZone.classList.add("dragover");
-        });
-
-        dropZone.addEventListener("dragleave", () => {
-            dropZone.classList.remove("dragover");
-        });
-
+        dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("dragover"); });
+        dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
         dropZone.addEventListener("drop", (e) => {
             e.preventDefault();
             dropZone.classList.remove("dragover");
-            const file = e.dataTransfer.files[0];
-            if (file) uploadFile(file);
+            if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
         });
 
         fileInput.addEventListener("change", () => {
-            const file = fileInput.files[0];
-            if (file) uploadFile(file);
+            if (fileInput.files[0]) uploadFile(fileInput.files[0]);
         });
 
         async function uploadFile(file) {
             const formData = new FormData();
             formData.append("file", file);
 
-            // UI Feedback - Let the user know we are working
-            headerText.innerText = "Processing Header...";
-            signatureText.innerText = "Processing Signature...";
+            hText.innerText = "⏳ Processing...";
+            sText.innerText = "⏳ Processing...";
+            downloadContainer.classList.add("hidden");
+            dlHeaderBtn.classList.add("hidden");
+            dlSigBtn.classList.add("hidden");
+            headerImg.classList.add("hidden");
+            sigImg.classList.add("hidden");
+            fullImg.classList.add("hidden");
 
             try {
                 const response = await fetch("/upload", {
@@ -125,43 +208,43 @@
                     body: formData
                 });
 
-                if (!response.ok) throw new Error("Upload failed");
+                if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
 
                 const data = await response.json();
-                console.log("Server Response:", data); // Check your F12 console to see this!
-                document.getElementById("header").innerText = data.header_text || "Missing Header";
-                document.getElementById("signature").innerText = data.signature_text || "Missing Signature";
 
-                // 1. Update Text Content (Using || to prevent 'undefined' text)
-                headerText.innerText = data.header_text || "No header data received";
-                signatureText.innerText = data.signature_text || "No signature data received";
+                if (data.folder_id) {
+                    downloadLink.href = `/download/${data.folder_id}`;
+                    downloadContainer.classList.remove("hidden");
+                }
 
-                // 2. Update Header Image
+                hText.innerText = data.header_text || "No header text found.";
+                sText.innerText = data.signature_text || "No signature text found.";
+
                 if (data.header_img) {
-                    headerImgSlot.src = "data:image/png;base64," + data.header_img;
-                    headerImgSlot.style.display = "block";
+                    headerImg.src = "data:image/png;base64," + data.header_img;
+                    headerImg.classList.remove("hidden");
+                    dlHeaderBtn.classList.remove("hidden");
+                    dlHeaderBtn.onclick = () => window.location.href = `/download/header/${data.folder_id}`;
                 }
-
-                // 3. Update Signature Image
+                
                 if (data.signature_img) {
-                    sigImgSlot.src = "data:image/png;base64," + data.signature_img;
-                    sigImgSlot.style.display = "block";
+                    sigImg.src = "data:image/png;base64," + data.signature_img;
+                    sigImg.classList.remove("hidden");
+                    dlSigBtn.classList.remove("hidden");
+                    dlSigBtn.onclick = () => window.location.href = `/download/signature/${data.folder_id}`;
                 }
 
-                // 4. Update Full Preview
                 if (data.full_image) {
-                    previewImg.src = "data:image/png;base64," + data.full_image;
-                    previewImg.style.display = "block";
+                    fullImg.src = "data:image/png;base64," + data.full_image;
+                    fullImg.classList.remove("hidden");
                 }
 
             } catch (error) {
-                console.error("Error:", error);
-                headerText.innerText = "Error: " + error.message;
-                signatureText.innerText = "Error: " + error.message;
-                alert("Server connection failed. Is Uvicorn running?");
+                console.error("Upload Error:", error);
+                hText.innerText = "❌ Error: " + error.message;
+                sText.innerText = "❌ Error: " + error.message;
             }
         }
     </script>
-
 </body>
 </html>

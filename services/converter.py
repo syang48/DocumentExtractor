@@ -2,89 +2,70 @@ import fitz
 import os
 import subprocess
 import shutil
+from pathlib import Path
 
-def convert_to_png(file_path, job_id):
+def get_soffice_path():
+    """Locates LibreOffice binary for docx conversion."""
+    search_paths = [
+        '/opt/homebrew/bin/soffice',
+        '/usr/bin/soffice',
+        '/usr/bin/libreoffice'
+    ]
+    for path in search_paths:
+        if os.path.exists(path): return path
+    return shutil.which('soffice') or shutil.which('libreoffice')
+
+def convert_to_png(file_path, original_filename):
     """
-    Converts DOCX or PDF to PNG. 
-    Uses LibreOffice for DOCX -> PDF, then PyMuPDF for PDF -> PNG.
+    Converts docx/pdf to png. The resulting PNG is stored in a folder 
+    named after the file. Intermediate PDFs are NOT saved.
     """
-    # 1. Setup paths
-    file_to_open = file_path 
-    upload_dir = "storage/uploads"
-    output_dir = "storage/output"
+    # 1. Setup the Job Folder
+    base_name = Path(original_filename).stem
+    job_dir = Path("storage/output") / base_name
+    job_dir.mkdir(parents=True, exist_ok=True)
     
-    # Ensure directories exist
-    os.makedirs(upload_dir, exist_ok=True)
-    os.makedirs(output_dir, exist_ok=True)
+    png_path = job_dir / f"{base_name}.png"
+    temp_pdf_path = None
 
-    # 2. Handle Word Documents (Using LibreOffice/soffice)
-    if file_path.lower().endswith(".docx"):
-        final_pdf_path = os.path.join(upload_dir, f"{job_id}.pdf")
-        
-        # LibreOffice names output based on the input filename
-        base_name = os.path.basename(file_path)
-        temp_pdf_name = os.path.splitext(base_name)[0] + ".pdf"
-        temp_pdf_path = os.path.join(upload_dir, temp_pdf_name)
-
-        print(f"DEBUG: Starting LibreOffice DOCX to PDF conversion...")
-        
-        try:
-            # We use 'soffice' in headless mode. 
-            # Subprocess.run waits for completion, so no time.sleep(1) is needed.
-            subprocess.run([
-                'soffice', 
-                '--headless', 
-                '--convert-to', 'pdf', 
-                '--outdir', upload_dir, 
-                file_path
-            ], check=True, capture_output=True)
-
-            # LibreOffice doesn't let us pick the output filename directly, 
-            # so we move/rename it to our expected job_id format.
-            if os.path.exists(temp_pdf_path):
-                shutil.move(temp_pdf_path, final_pdf_path)
-                file_to_open = final_pdf_path
-            else:
-                # Fallback check: if the user uploaded a file with the same name as job_id
-                if os.path.exists(final_pdf_path):
-                    file_to_open = final_pdf_path
-                else:
-                    print(f"ERROR: LibreOffice finished but PDF was not found.")
-                    return None
-                
-        except subprocess.CalledProcessError as e:
-            print(f"DEBUG: LibreOffice error: {e.stderr.decode() if e.stderr else e}")
-            return None
-        except Exception as e:
-            print(f"DEBUG: Unexpected conversion error: {e}")
-            return None
-
-    # 3. Open the PDF (original or converted) and convert to PNG
     try:
-        if not os.path.exists(file_to_open):
-            print(f"ERROR: File not found at {file_to_open}")
-            return None
-
-        # Process with PyMuPDF (fitz)
-        doc = fitz.open(file_to_open)
-        
-        # Ensure the document actually has pages
-        if len(doc) == 0:
-            print("ERROR: PDF has no pages.")
-            return None
+        # 2. Identify the PDF Source
+        if original_filename.lower().endswith(".docx"):
+            soffice_bin = get_soffice_path()
+            if not soffice_bin:
+                print("CRITICAL: 'soffice' not found.")
+                return None
             
-        page = doc[0]  # Get first page
-        
-        # matrix=fitz.Matrix(2, 2) provides 2x zoom for better PNG quality
+            # Convert DOCX to a temporary PDF inside the job folder
+            subprocess.run([
+                soffice_bin, '--headless', '--convert-to', 'pdf', 
+                '--outdir', str(job_dir.absolute()), 
+                os.path.abspath(file_path)
+            ], check=True, capture_output=True)
+            
+            temp_pdf_path = job_dir / f"{base_name}.pdf"
+            pdf_to_open = str(temp_pdf_path)
+        else:
+            # If it's already a PDF, just point to the original upload path
+            pdf_to_open = file_path
+
+        # 3. Process with PyMuPDF (Extract PNG)
+        doc = fitz.open(pdf_to_open)
+        page = doc[0]
         pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-        
-        output_png = os.path.join(output_dir, f"{job_id}.png")
-        pix.save(output_png)
+        pix.save(str(png_path))
         doc.close()
-        
-        print(f"SUCCESS: Created {output_png}")
-        return output_png
+
+        # 4. Cleanup: Remove the temporary PDF if it was created
+        if temp_pdf_path and temp_pdf_path.exists():
+            temp_pdf_path.unlink()
+
+        print(f"SUCCESS: PNG saved to {job_dir}")
+        return str(png_path)
 
     except Exception as e:
-        print(f"FITZ ERROR: {e}")
+        print(f"ERROR: {e}")
+        # Cleanup PDF on failure as well
+        if temp_pdf_path and temp_pdf_path.exists():
+            temp_pdf_path.unlink()
         return None
