@@ -41,7 +41,7 @@ Using OpenCV, the service performs a lossless crop based on the identified coord
 
 The platform includes a dedicated Record Tab, providing a robust management layer for previously processed work.
 
-<img width="642" height="910" alt="Screenshot 2026-03-23 at 4 17 18 PM" src="https://github.com/user-attachments/assets/a22376c3-a453-455e-811c-27ee8ab81b12" />
+<img width="702" height="736" alt="Screenshot 2026-03-23 at 11 01 22 PM" src="https://github.com/user-attachments/assets/ec370821-584e-4e77-ad01-a18cfad42d9b" />
 
 
 Document Logging: Every processed file is indexed with its original metadata for easy auditing.
