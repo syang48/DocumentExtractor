@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Records</title>
+    <title>My Document Records</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; color: #2d3748; }
         nav { background: #2d3748; padding: 15px 30px; display: flex; justify-content: flex-end; gap: 20px; }
         .nav-btn { color: white; text-decoration: none; font-weight: bold; padding: 8px 16px; border-radius: 6px; }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.2); }
         
         .container { max-width: 1100px; margin: 30px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
-        .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #edf2f7; padding: 15px; border-radius: 8px; }
+        .stats-bar { margin-bottom: 20px; background: #ebf8ff; padding: 12px; border-radius: 8px; border-left: 4px solid #4299e1; font-weight: bold; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #f8fafc; padding: 15px; text-align: left; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; font-size: 12px; }
@@ -23,6 +24,9 @@
         .btn-header { background: #4299e1; } 
         .btn-sig { background: #ed8936; }
         .btn-del { background: #f56565; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        
+        .empty-state { text-align: center; padding: 40px; color: #718096; }
+        #loader { text-align: center; padding: 20px; font-style: italic; }
     </style>
 </head>
 <body>
@@ -33,23 +37,12 @@
     </nav>
 
     <div class="container">
-        <h2>📂 Processed Document Records</h2>
-
-        <div class="controls">
-            <div>
-                Show <select id="limitSelect" onchange="updateLimit()">
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="25">25</option>
-                </select> records
-            </div>
-            <div class="pagination-btns">
-                <button id="prevBtn" onclick="changePage(-1)">Previous</button>
-                <span id="pageIndicator" style="margin: 0 10px;">Page 1</span>
-                <button id="nextBtn" onclick="changePage(1)">Next</button>
-            </div>
-        </div>
+        <h2>📂 My Processed Records</h2>
         
+        <div id="stats" class="stats-bar">
+            Detecting your private records...
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -60,46 +53,61 @@
                     <th>Action</th>
                 </tr>
             </thead>
-            <tbody id="record-body"></tbody>
+            <tbody id="record-body">
+                </tbody>
         </table>
-        <div id="loader" style="padding: 20px;">Scanning storage...</div>
+        
+        <div id="loader">Scanning server for your files...</div>
     </div>
 
     <script>
-        let currentPage = 1;
-        let limit = 10;
-        let totalRecords = 0;
-
         async function loadRecords() {
-            try {
-                // 1. Get the list of IDs this specific user uploaded
-                const myUploads = JSON.parse(localStorage.getItem('myUploads')) || [];
-                
-                const response = await fetch(`/api/records?page=${currentPage}&limit=${limit}`);
-                const data = await response.json();
-                const tbody = document.getElementById('record-body');
-                tbody.innerHTML = "";
-                document.getElementById('loader').style.display = 'none';
+            const tbody = document.getElementById('record-body');
+            const stats = document.getElementById('stats');
+            const loader = document.getElementById('loader');
 
-                // 2. FILTER the results: only show folders that exist in 'myUploads'
+            try {
+                // 1. Get the list of IDs from THIS user's browser
+                const myUploads = JSON.parse(localStorage.getItem('myUploads')) || [];
+
+                // 2. Fetch ALL records from the server (using a high limit to bypass pagination issues)
+                // This ensures we see our files even if they are 'deep' in the server's storage
+                const response = await fetch(`/api/records?page=1&limit=9999`);
+                const data = await response.json();
+                
+                tbody.innerHTML = "";
+                loader.style.display = 'none';
+
+                // 3. Filter: Only show folders that belong to this browser's session
                 const filteredRecords = data.records.filter(folder => myUploads.includes(folder));
 
+                // 4. Update the Stats bar
+                stats.innerText = `Found ${filteredRecords.length} records associated with this browser.`;
+
                 if (filteredRecords.length === 0) {
-                    tbody.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No records found for your session.</td></tr>";
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <h3>No Records Found</h3>
+                                <p>You haven't uploaded any documents in this browser yet, or your history was cleared.</p>
+                                <a href="/" style="color: #4299e1;">Go to Home to upload a file</a>
+                            </td>
+                        </tr>`;
                     return;
                 }
 
+                // 5. Render only the user's specific records
                 filteredRecords.forEach(folder => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td><strong>${folder}</strong></td>
                         <td><a href="/download/${folder}" class="action-btn btn-zip">📦 ZIP</a></td>
                         <td>
-                            <img src="/download/header/${folder}" class="preview-img">
+                            <img src="/download/header/${folder}" class="preview-img" onerror="this.src='https://via.placeholder.com/120x60?text=No+Image'">
                             <a href="/download/header/${folder}" class="action-btn btn-header">PNG</a>
                         </td>
                         <td>
-                            <img src="/download/signature/${folder}" class="preview-img">
+                            <img src="/download/signature/${folder}" class="preview-img" onerror="this.src='https://via.placeholder.com/120x60?text=No+Image'">
                             <a href="/download/signature/${folder}" class="action-btn btn-sig">PNG</a>
                         </td>
                         <td><button class="btn-del" onclick="deleteRecord('${folder}')">🗑️ Delete</button></td>
@@ -107,41 +115,37 @@
                     tbody.appendChild(row);
                 });
 
-                // Note: Pagination logic might need adjustment since we are filtering client-side now
-                document.getElementById('pageIndicator').innerText = `Page ${currentPage}`;
             } catch (err) {
-                document.getElementById('loader').innerText = "❌ Error connecting to server.";
+                console.error("Fetch Error:", err);
+                loader.innerHTML = "<b style='color:red;'>❌ Error connecting to the Docker server.</b>";
+                stats.innerText = "Connection failed.";
             }
         }
 
         async function deleteRecord(name) {
-            if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+            if (!confirm(`Are you sure you want to delete ${name} from the server?`)) return;
             
-            await fetch('/api/delete', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ folders: [name] })
-            });
+            try {
+                // Delete from the Docker server
+                await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ folders: [name] })
+                });
 
-            // Remove from LocalStorage list
-            let history = JSON.parse(localStorage.getItem('myUploads')) || [];
-            history = history.filter(id => id !== name);
-            localStorage.setItem('myUploads', JSON.stringify(history));
+                // Remove from THIS browser's list
+                let history = JSON.parse(localStorage.getItem('myUploads')) || [];
+                history = history.filter(id => id !== name);
+                localStorage.setItem('myUploads', JSON.stringify(history));
 
-            loadRecords();
+                // Refresh the table
+                loadRecords();
+            } catch (err) {
+                alert("Failed to delete record from server.");
+            }
         }
 
-        function changePage(step) {
-            currentPage += step;
-            loadRecords();
-        }
-
-        function updateLimit() {
-            limit = document.getElementById('limitSelect').value;
-            currentPage = 1;
-            loadRecords();
-        }
-
+        // Initialize on page load
         loadRecords();
     </script>
 </body>
