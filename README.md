@@ -2,6 +2,8 @@
 
 Live Application: https://documentextractor-mbx5.onrender.com/
 
+![Docker CI with Pytest](https://github.com)
+
 DocumentExtractor is an automated pipeline designed to isolate high-value components (Headers and Signatures) from unstructured documents. By combining LibreOffice for robust format conversion and Amazon Textract for spatial intelligence, the system provides pixel-perfect extraction across various file types.
 
 <img width="642" height="910" alt="Screenshot 2026-03-23 at 4 17 03 PM" src="https://github.com/user-attachments/assets/c7a7df7c-2dd6-445d-9add-05c866ecb7cf" />
